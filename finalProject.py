@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 import time
 import openravepy
+from planner.priorityPlanner import *
 
 if not __openravepy_build_doc__:
     from openravepy import *
@@ -40,9 +41,15 @@ if __name__ == "__main__":
          tuckarms(env, robot)
         # tuck in the PR2's arms for driving
 
+    # Robot[0] is the ambulance and all others are vehicles
+    ambulance = env.GetRobots()[0]
+    vehicles = env.GetRobots()[1:]
+
+    ambulanceStartConfig = []
+    ambulanceGoalConfig = []
 
     #### YOUR CODE HERE ####
-
+    # prp.priorityPlanner(env, ambulance, vehicles, ambulanceStartConfig, ambulanceGoalConfig)
 
 
 

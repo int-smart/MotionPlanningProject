@@ -100,12 +100,13 @@ def Astar():
     raise NotImplementedError
 
 class BiRRTConnect():
-    def __init__(self, start, goal, maxIter, step, env, robot, smooth=True):
+    def __init__(self, start, goal, maxIter, step, env, robot, smooth=False):
         self.startState = Node(start, None)
         self.goalState = Node(goal, None)
         self.maxIterations = maxIter
         self.stepSize = step
         self.env = env
+        self.path = []
         self.robot = robot
         self.handles = []
         self.lowerLimits, self.upperLimits = robot.GetActiveDOFLimits()
@@ -131,6 +132,9 @@ class BiRRTConnect():
             return True
         else:
             return False
+
+    def getPath(self):
+        return self.path
 
     def buildBiRRTConnect(self):
         direction = FORWARD
@@ -168,9 +172,9 @@ class BiRRTConnect():
                 finalForwardPath = finalForwardPath+finalBackwardPath
                 print("Reached the goal")
                 if self.doSmooth:
-                    finalPath = self.smoothenPath(finalForwardPath)
+                    self.path = self.smoothenPath(finalForwardPath)
                 else:
-                    finalPath = finalForwardPath
+                    self.path = finalForwardPath
                 return "success"
         print("Fail to find solution")
         return "Failure"
