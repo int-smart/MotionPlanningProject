@@ -231,21 +231,6 @@ class SIPP(object):
                         indState.addtValue(t_arr)
                         indState.arrTime = t_arr
                         successors.append(indState)
-
-            while True:
-                if counter in L:
-                    counter = counter+dt
-                    continue
-                else:
-                    t_arr = counter
-                    cost = dt    #This has a function c(r_i, e_j, t) in the paper
-                                #but for us we just assign edge weights as 1 for now.
-                    # if isGoal(indState) or indState is not parking
-                    indState.addtValue(t_arr)
-                    indState.arrTime = t_arr
-                    # indState.cValue = cost
-                    successors.append(indState)
-
         return successors
 
     def runSIPP(self):
