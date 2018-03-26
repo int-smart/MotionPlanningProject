@@ -4,7 +4,7 @@ import math
 import sys
 import random
 import copy
-from finalProject.utils.config import *
+from utils.config import *
 
 try:
     import Queue as q
@@ -126,6 +126,7 @@ class State(object):
 
 
 class SIPP(object):
+    TInterval = dict()
     def __init__(self, startConfig, goalConfig, stepX=0.15, stepY=0.15, stepTheta=0.15, tolerance=0.6, hr = "euclidean", connection=8):
         self.startState = State(startConfig,None)
         self.goalState = State(goalConfig,None)
@@ -207,7 +208,7 @@ class SIPP(object):
                     t_arr = timeStep + dt
                     cost = indState.edgeCost
                     #TODO Add Check condition if the node is too near the other robots goal, which can be problem. Not right now though
-                    indState.addtValue(t_arr)
+                    # indState.addtValue(t_arr)
                     indState.arrTime = t_arr
                     successors.append(indState)
 
@@ -228,7 +229,7 @@ class SIPP(object):
                         t_arr = timeStep + dt
                         cost = indState.edgeCost
                         # TODO Add Check condition if the node is too near the other robots goal, which can be problem. Not right now though
-                        indState.addtValue(t_arr)
+                        # indState.addtValue(t_arr)
                         indState.arrTime = t_arr
                         successors.append(indState)
         return successors

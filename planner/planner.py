@@ -5,13 +5,19 @@ import sys
 import random
 import copy
 # This file contains the planner for A*, SIPP and bidirectional RRT connect.
-from finalProject.utils.config import *
+# from utils.config import *
+from utils.config import *
 
 # TODO Add the collision checking when connecting the node to the random node in the connect
 # algorithm not in randConfig as randConfig takes much more time
 
+#TODO Try and see if removing the other PR2 other than ambulance to see if collisionchecker is checking them and therefore not giving answers
+#TODO Why is goal again and again coming
+#TODO Problem: randState is coming out startState and nearState is coming out goal
+#TODO The backWard tree has the same node added multiple times
+#TODO randState in extend is coming out same as startState
+#TODO Advanced in connect or extend is maybe not changing the nearState and thats why just adding one nearState to tree
 def CheckCollisions(env, robot):
-
     if env.CheckCollision(robot) or robot.CheckSelfCollision():
         return True
     else:
@@ -21,7 +27,7 @@ class Node(object):
     def __init__(self,cfg,prt):
         assert (len(cfg) == NODE_SIZE), "Dimensions of node should be equal {}".format(NODE_SIZE)
         self._q = cfg
-        self._parent = prt
+        self._parent = copy.deepcopy(prt)
 
     def __str__(self):
         print("The node config value and parent is ", self._q, self._parent)
@@ -40,7 +46,7 @@ class Node(object):
 
     @parent.setter
     def parent(self, prt):
-        self._parent = prt
+        self._parent = copy.deepcopy(prt)
 
     def distanceMeasure(self, node, pr2):
         distance = 0.0
@@ -75,11 +81,12 @@ class NodeTree(object):
         while node.parent is not None:
             path.append(node.config)
             node = node.parent
+        path.append(node.config)
         return path
 
     def _getNearestNeighbor(self, node, robot):
         distance = sys.float_info.max
-        nearNode = Node([],None)
+        # nearNode = Node([],None)
         for treeNode in self._tree:
             tempDistance = treeNode.distanceMeasure(node, robot)
             if distance > tempDistance:
@@ -110,6 +117,10 @@ class BiRRTConnect():
         self.robot = robot
         self.handles = []
         self.lowerLimits, self.upperLimits = robot.GetActiveDOFLimits()
+        self.lowerLimits[0] = -7.8
+        self.lowerLimits[1] = -3.8
+        self.upperLimits[0] = 7.8
+        self.upperLimits[1] = 3.8
         self.lowerLimits[ORIENTATION] = -math.pi
         self.upperLimits[ORIENTATION] = math.pi
         if self.startState.config[ORIENTATION] < self.lowerLimits[ORIENTATION]:
@@ -138,8 +149,8 @@ class BiRRTConnect():
 
     def buildBiRRTConnect(self):
         direction = FORWARD
-        self.tree_forward._addNode(self.startState)
-        self.tree_backward._addNode(self.goalState)
+        self.tree_forward._addNode(copy.deepcopy(self.startState))
+        self.tree_backward._addNode(copy.deepcopy(self.goalState))
         finalForwardPath = []
         finalBackwardPath = []
         finalPath = []
@@ -147,34 +158,41 @@ class BiRRTConnect():
         for index in range(self.maxIterations):
             qRand = self.randomConfig()
             if direction == FORWARD:
-                nearState = self.tree_forward._getNearestNeighbor(qRand, self.robot)
+                nearState = copy.deepcopy(self.tree_forward._getNearestNeighbor(qRand, self.robot))
                 statusExtend = self.extend(self.tree_forward,qRand, nearState)
                 if statusExtend == "Reached":
                     aim = copy.deepcopy(qRand)
                 elif statusExtend == "Advanced":
                     aim = copy.deepcopy(nearState)
+                else:
+                    continue
                 if self.connect(self.tree_backward,aim) == "Reached":
                     doneFlag = True
             elif direction == BACKWARD:
-                nearState = self.tree_backward._getNearestNeighbor(qRand, self.robot)
+                nearState = copy.deepcopy(self.tree_backward._getNearestNeighbor(qRand, self.robot))
                 statusExtend = self.extend(self.tree_backward, qRand, nearState)
                 if statusExtend == "Reached":
                     aim = copy.deepcopy(qRand)
                 elif statusExtend == "Advanced":
                     aim = copy.deepcopy(nearState)
+                else:
+                    continue
                 if self.connect(self.tree_forward,aim) == "Reached":
                     doneFlag = True
             direction = -1 * direction
             if doneFlag == True:
                 finalForwardPath = self.tree_forward._generatePath(self.tree_forward._getNode(self.tree_forward._getTreeSize()-1))
                 finalBackwardPath = self.tree_backward._generatePath(self.tree_backward._getNode(self.tree_backward._getTreeSize()-1))
-                finalBackwardPath.reverse()
+                finalForwardPath.reverse()
+                finalForwardPath = finalForwardPath[:-1]
                 finalForwardPath = finalForwardPath+finalBackwardPath
                 print("Reached the goal")
                 if self.doSmooth:
                     self.path = self.smoothenPath(finalForwardPath)
                 else:
                     self.path = finalForwardPath
+                for index in range(len(self.path)):
+                    self.handles.append(self.env.plot3(np.array(self.path[index]), 2.0, colors=np.array(((1,0,0)))))
                 return "success"
         print("Fail to find solution")
         return "Failure"
@@ -182,15 +200,15 @@ class BiRRTConnect():
     def randomConfig(self):
         randConfig = []
         for index in range(len(self.goalState.config)):
-            rnge = self.upperLimits[i] - self.lowerLimits[i]
-            val = self.lowerLimits[i] + (rnge*random.uniform())
+            rnge = self.upperLimits[index] - self.lowerLimits[index]
+            val = self.lowerLimits[index] + (rnge*random.random())
             randConfig.append(val)
         temp = Node(randConfig, None)
         return temp
 
     def connect(self, tree, randState):
         status = "Advanced"
-        nearState = tree._getNearestNeighbor(randState, self.robot)
+        nearState = copy.deepcopy(tree._getNearestNeighbor(randState, self.robot))
         while status == "Advanced":
             status = self.extend(tree, randState, nearState)
         return status
@@ -202,18 +220,21 @@ class BiRRTConnect():
             status = "Trapped"
             return status
         else:
-            if randState.distanceMeasure(newState, robot)<self.stepSize:
-                tree._addNode(newState)
+            if randState.distanceMeasure(newState, self.robot)<self.stepSize:
+                tree._addNode(copy.deepcopy(newState))
                 randState.parent = newState
                 self.robot.SetActiveDOFValues(randState.config)
                 if not CheckCollisions(self.env, self.robot):
-                    tree._addNode(randState)
+                    tree._addNode(copy.deepcopy(randState))
                 status = "Reached"
                 return status
             else:
-                tree._addNode(newState)
+                tree._addNode(copy.deepcopy(newState))
+                self.handles.append(self.env.plot3(np.array([newState.config[0], newState.config[1], 0.1]), 5.0, colors=np.array(((1, 0, 0)))))
                 status = "Advanced"
-                nearState = newState
+                #TODO this nearstate is notchanging in the above connect function on line 211. In the next line nearState is being declared again
+                nearState.config = newState.config
+                nearState.parent = newState.parent
                 return status
 
     def IsSafePoint(self,config):

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 import time
 import openravepy
-from planner.priorityPlanner import *
+from planner import priorityPlanner as prp
 
 if not __openravepy_build_doc__:
     from openravepy import *
@@ -39,17 +39,17 @@ if __name__ == "__main__":
     for i in range(len(env.GetRobots())):
          robot = env.GetRobots()[i]
          tuckarms(env, robot)
-        # tuck in the PR2's arms for driving
+         robot.SetActiveDOFs([], DOFAffine.X | DOFAffine.Y | DOFAffine.RotationAxis, [0, 0, 1])
+         # tuck in the PR2's arms for driving
 
     # Robot[0] is the ambulance and all others are vehicles
     ambulance = env.GetRobots()[0]
-    vehicles = env.GetRobots()[1:]
 
-    ambulanceStartConfig = []
-    ambulanceGoalConfig = []
+    ambulanceStartConfig = list(ambulance.GetActiveDOFValues())
+    ambulanceGoalConfig = [4.60594,0.28479,0]
 
     #### YOUR CODE HERE ####
-    # prp.priorityPlanner(env, ambulance, vehicles, ambulanceStartConfig, ambulanceGoalConfig)
+    prp.priorityPlanner(env, ambulance, ambulanceStartConfig, ambulanceGoalConfig)
 
 
 
