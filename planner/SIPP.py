@@ -43,7 +43,10 @@ class State(object):
         self._hValue = SIPP.euclideanMetric(config, State.goalConfig)
         self._eValue = 0    #eValue is the fValue is normal A*
         self._arrTime = 0   #This is the arrival time
-        self._edgeCost = SIPP.euclideanMetric(config, parent.node)
+        if self.parent is not None:
+            self._edgeCost = SIPP.euclideanMetric(config, parent.node)
+        else:
+            self._edgeCost = 0
 
     @staticmethod
     def setParameters(srtConfig, glConfig):
@@ -52,7 +55,7 @@ class State(object):
 
     @property
     def edgeCost(self):
-        return self._edgeCost
+        return SIPP.euclideanMetric(self.node, self.parent.node)
 
     @edgeCost.setter
     def edgeCost(self, value):
@@ -89,6 +92,7 @@ class State(object):
     @parent.setter
     def parent(self, parentNode):
         self._parent = parentNode
+        # self._edgeCost = SIPP.euclideanMetric(config, parent.node)
 
     @property
     def node(self):
@@ -121,13 +125,13 @@ class State(object):
     @arrTime.setter
     def arrTime(self, value):
         self._arrTime = value
-
 # The arrival time is the time when the first time it is occupied
 
 
 class SIPP(object):
     TInterval = dict()
     def __init__(self, startConfig, goalConfig, stepX=0.15, stepY=0.15, stepTheta=0.15, tolerance=0.6, hr = "euclidean", connection=8):
+        State.setParameters(startConfig, goalConfig)
         self.startState = State(startConfig,None)
         self.goalState = State(goalConfig,None)
         self.stepSizeX = stepX
@@ -139,7 +143,7 @@ class SIPP(object):
         self.handler = []
         self.clock = STARTING_TIME
         self.closedSet = set()
-        self.nodesList = []
+        self.path = []
 
         self.startState = State(startConfig, None)
         self.goalState = State(goalConfig, None)
@@ -184,7 +188,28 @@ class SIPP(object):
     def getEntryFromQueue(container):
         return heapq.heappop(container)
 
-    def getSuccessors(self, state, timeStep = int):
+    def getTValue(self, state):
+        if self.TInterval.has_key(state.node):
+            return self.TInterval[state.node]
+        else:
+            return []
+
+    def generatePath(self):
+        path = []
+        state = copy.deepcopy(self.goalState)
+        while state.parent is not None:
+            path.append(state.node)
+            if SIPP.TInterval.has_key(state.node):
+                SIPP.TInterval[state.node].append(state.arrTime)
+            else:
+                SIPP.TInterval[state.node] = []
+                SIPP.TInterval[state.node].append(state.arrTime)
+            state = state.parent
+        path.append(state.node)
+
+        return path
+
+    def getSuccessors(self, state, timeStep):
         """
         This method is trying to get the neighbors, then using the safe interval list
         of all the neighbors it checks if the start and end time of our movement in and out
@@ -195,16 +220,23 @@ class SIPP(object):
         """
         successors = []
         for indState in self.getEightConnectedNeighbors(state, self.stepSizeX, self.stepSizeY, self.stepSizeTheta):
-            L = indState.gettValue()                    #Getting the safe interval list
+            L = self.getTValue(indState)                    #Getting the safe interval list
             dt = EDGETIMECOST                           #time to traverse to this successor node from current node = 1
             counter = timeStep                          #Here I am starting from timeStep as timeStep has already passed
             start_time = 0
             end_time = float("inf")
+            currentInterval = self.getTValue(state)
+            current_time = timeStep
+
+            while current_time not in self.TInterval[state.node]:
+                current_time = current_time+1
+            current_end_time = current_time-1
             #The first case below is when the list of intervals is empty
             if len(L) == 0:
                 start_time = 0
                 end_time = float("inf")
-                if end_time > timeStep + dt and start_time<=timeStep+dt:            #TODO Check Condition Here None action would be problem
+                if end_time > timeStep + dt and start_time<current_end_time:            #TODO Check Condition Here None action would be problem
+                    # I have added timestep+dt in startTime because the when I reach there
                     t_arr = timeStep + dt
                     cost = indState.edgeCost
                     #TODO Add Check condition if the node is too near the other robots goal, which can be problem. Not right now though
@@ -225,7 +257,7 @@ class SIPP(object):
                     else:
                         end_time = L[interval]
                         start_time = L[interval-1] + dt
-                    if end_time > timeStep + dt and start_time <= timeStep + dt:  # TODO Check Condition Here None action would be problem
+                    if end_time > timeStep + dt and start_time <current_end_time:  # TODO Check Condition Here None action would be problem
                         t_arr = timeStep + dt
                         cost = indState.edgeCost
                         # TODO Add Check condition if the node is too near the other robots goal, which can be problem. Not right now though
@@ -244,14 +276,16 @@ class SIPP(object):
         TValue = {}
 
         self.startState.cValue = 0
-        self.startState.eValue = self.euclideanMetric(self.startState.config, self.goalState.config)
+        self.startState.eValue = self.euclideanMetric(self.startState.node, self.goalState.node)
         self.startState.arrTime = self.clock
         SIPP.addEntryToQueue(openPriorityQueue, self.startState.eValue, self.startState)
         CValue[self.startState.node] = 0
         TValue[self.startState.node] = self.clock
-
-        while len(openPriorityQueue) != 0 and euclideanMetric(currentState, self.goalState)<1.0:
-            currentState = SIPP.getEntryFromQueue(openPriorityQueue)[1]        # TODO Here the
+        currentState = self.startState
+# TODO the openPriorityQueue can not be empty as it owuld take infinite time so rather cap it with max iterations
+        while len(openPriorityQueue) != 0 or self.euclideanMetric(currentState, self.goalState)<1.0:
+            currentState = SIPP.getEntryFromQueue(openPriorityQueue)[1]
+            # TODO Here the
             # datastructure that would come would have state and priority so
             # change this statement to index the state. RIght now I am not
             # doing it to understand the algo first
@@ -280,6 +314,10 @@ class SIPP(object):
                         if entry[1].node == successor.node and entry[1].cValue >= CValue[successor.node] and entry[1].arrTime >= TValue[successor.node]:
                             openPriorityQueue.remove(entry)
                     heapq.heapify(openPriorityQueue)
+        self.goalState.parent = currentState
+        self.goalState.arrTime = currentState.arrTime+1
+        self.path = self.generatePath()
+        self.path.reverse()
 
 
     def setStartState(self, startConfig):

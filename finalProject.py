@@ -3,6 +3,7 @@
 import time
 import openravepy
 from planner import priorityPlanner as prp
+from planner import SIPP as multiPlanner
 
 if not __openravepy_build_doc__:
     from openravepy import *
@@ -49,9 +50,9 @@ if __name__ == "__main__":
     ambulanceGoalConfig = [4.60594,0.28479,0]
 
     #### YOUR CODE HERE ####
-    prp.priorityPlanner(env, ambulance, ambulanceStartConfig, ambulanceGoalConfig)
-
-
+    # prp.priorityPlanner(env, ambulance, ambulanceStartConfig, ambulanceGoalConfig)
+    multiPlan = multiPlanner.SIPP(ambulanceStartConfig, ambulanceGoalConfig)
+    multiPlan.runSIPP()
 
 
 
