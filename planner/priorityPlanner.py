@@ -48,7 +48,7 @@ def priorityPlanner(env, robot, start, goal):
     if doneFlag == False:
         print('Fail to reach to a solution')
 
-#TODO 1. the below function should generate random goals
+#TODO 1. the status in the below function is always true change it to consider cases when this order is not correct
 #TODO 2. The canPlan is false right now. Maybe add a condition if canPlan fails for 5 times maybe the ordering is wrong and that would call for order
 def planBackward(env, planFor, robots, closedList, start, goal, step, maxIter):
     for vehicle in robots:
@@ -74,10 +74,14 @@ def planBackward(env, planFor, robots, closedList, start, goal, step, maxIter):
                 obstacleList.append(vehicle)
     obstacleList = list(set(obstacleList))
     for obs in obstacleList:
-        goal = backwardPlanner.randomConfig().config
-        start = obs.GetActiveDOFValues()
+        newgoal = backwardPlanner.randomConfig().config
+        obs.SetActiveDOFValues(newgoal)
+        while env.CheckCollision(obs) == True:
+            newgoal = backwardPlanner.randomConfig().config
+            obs.SetActiveDOFValues(newgoal)
+        newstart = obs.GetActiveDOFValues()
         tempAgent = obs
-        temp = Robot(start, goal, tempAgent)
+        temp = Robot(newstart, newgoal, tempAgent)
         finalList.append(temp)
 
     return finalList, True

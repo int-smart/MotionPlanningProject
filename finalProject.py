@@ -31,7 +31,7 @@ if __name__ == "__main__":
 
     env.Reset()
     # load a scene from ProjectRoom environment XML file
-    env.Load('./data/4PR2_door.xml')
+    env.Load('./data/4PR2_doorComplex.xml')
     time.sleep(0.1)
 
     # 1) get the 1st robot that is inside the loaded scene
@@ -50,7 +50,6 @@ if __name__ == "__main__":
 
     #### YOUR CODE HERE ####
     prp.priorityPlanner(env, ambulance, ambulanceStartConfig, ambulanceGoalConfig)
-
 
 
 

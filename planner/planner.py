@@ -7,7 +7,7 @@ import copy
 # This file contains the planner for A*, SIPP and bidirectional RRT connect.
 # from utils.config import *
 from utils.config import *
-
+random.seed(2)
 # TODO Add the collision checking when connecting the node to the random node in the connect
 # algorithm not in randConfig as randConfig takes much more time
 
