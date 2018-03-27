@@ -32,7 +32,8 @@ if __name__ == "__main__":
 
     env.Reset()
     # load a scene from ProjectRoom environment XML file
-    env.Load('./data/4PR2_doorComplex.xml')
+    env.Load('data/pr2test2.env.xml')
+    # env.Load('./data/4PR2_doorComplex.xml')
     time.sleep(0.1)
 
     # 1) get the 1st robot that is inside the loaded scene
@@ -47,11 +48,11 @@ if __name__ == "__main__":
     ambulance = env.GetRobots()[0]
 
     ambulanceStartConfig = list(ambulance.GetActiveDOFValues())
-    ambulanceGoalConfig = [4.60594,0.28479,0]
-
+    # ambulanceGoalConfig = [4.60594,0.28479,0]
+    ambulanceGoalConfig = [-0.02, -1.2, -pi / 2]
     #### YOUR CODE HERE ####
     # prp.priorityPlanner(env, ambulance, ambulanceStartConfig, ambulanceGoalConfig)
-    multiPlan = multiPlanner.SIPP(ambulanceStartConfig, ambulanceGoalConfig)
+    multiPlan = multiPlanner.SIPP(ambulanceStartConfig, ambulanceGoalConfig, env, ambulance)
     multiPlan.runSIPP()
 
 

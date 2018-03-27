@@ -130,7 +130,7 @@ class State(object):
 
 class SIPP(object):
     TInterval = dict()
-    def __init__(self, startConfig, goalConfig, stepX=0.15, stepY=0.15, stepTheta=0.15, tolerance=0.6, hr = "euclidean", connection=8):
+    def __init__(self, startConfig, goalConfig, env, robot, stepX=0.25, stepY=0.15, stepTheta=0.25, tolerance=0.6, hr = "euclidean", connection=8):
         State.setParameters(startConfig, goalConfig)
         self.startState = State(startConfig,None)
         self.goalState = State(goalConfig,None)
@@ -144,14 +144,24 @@ class SIPP(object):
         self.clock = STARTING_TIME
         self.closedSet = set()
         self.path = []
-
+        self.env = env
+        self.robot = robot
         self.startState = State(startConfig, None)
         self.goalState = State(goalConfig, None)
 
     @staticmethod
-    def getEightConnectedNeighbors(state, stepSizeX, stepSizeY, stepSizeTheta):
+    def CheckCollisions(env, robot, config):
+        robot.SetActiveDOFValues(config)
+        if env.CheckCollision(robot) or robot.CheckSelfCollision():
+            return True
+        else:
+            return False
+
+    @staticmethod
+    def getEightConnectedNeighbors(currentState, env, robot, stepSizeX, stepSizeY, stepSizeTheta):
         temp = []
         nextCells = []
+        state = currentState.node
         # This should give us the same states for all robots. So a robot that
         # has visited some state the next robot should get that same datastructure
         # when it finds its successors
@@ -167,8 +177,11 @@ class SIPP(object):
                     else:
                         Z = state[2]
                     temp = [state[0] + i * stepSizeX, state[1] + j * stepSizeY, Z + k * stepSizeTheta]
-                    tempState = State(temp, state)
-                    nextCells.append(tempState)
+                    if SIPP.CheckCollisions(env,robot,temp):
+                        continue
+                    else:
+                        tempState = State(temp, currentState)
+                        nextCells.append(tempState)
         return nextCells
 
     @staticmethod
@@ -189,8 +202,8 @@ class SIPP(object):
         return heapq.heappop(container)
 
     def getTValue(self, state):
-        if self.TInterval.has_key(state.node):
-            return self.TInterval[state.node]
+        if self.TInterval.has_key(tuple(state.node)):
+            return self.TInterval[tuple(state.node)]
         else:
             return []
 
@@ -199,11 +212,11 @@ class SIPP(object):
         state = copy.deepcopy(self.goalState)
         while state.parent is not None:
             path.append(state.node)
-            if SIPP.TInterval.has_key(state.node):
-                SIPP.TInterval[state.node].append(state.arrTime)
+            if SIPP.TInterval.has_key(tuple(state.node)):
+                SIPP.TInterval[tuple(state.node)].append(state.arrTime)
             else:
-                SIPP.TInterval[state.node] = []
-                SIPP.TInterval[state.node].append(state.arrTime)
+                SIPP.TInterval[tuple(state.node)] = []
+                SIPP.TInterval[tuple(state.node)].append(state.arrTime)
             state = state.parent
         path.append(state.node)
 
@@ -219,7 +232,7 @@ class SIPP(object):
         :param timeStep:
         """
         successors = []
-        for indState in self.getEightConnectedNeighbors(state, self.stepSizeX, self.stepSizeY, self.stepSizeTheta):
+        for indState in self.getEightConnectedNeighbors(state, self.env, self.robot, self.stepSizeX, self.stepSizeY, self.stepSizeTheta):
             L = self.getTValue(indState)                    #Getting the safe interval list
             dt = EDGETIMECOST                           #time to traverse to this successor node from current node = 1
             counter = timeStep                          #Here I am starting from timeStep as timeStep has already passed
@@ -228,9 +241,16 @@ class SIPP(object):
             currentInterval = self.getTValue(state)
             current_time = timeStep
 
-            while current_time not in self.TInterval[state.node]:
-                current_time = current_time+1
-            current_end_time = current_time-1
+            copyInterval = copy.deepcopy(currentInterval)
+            copyInterval.append(current_time)
+            copyInterval.sort()
+            if copyInterval.index(current_time) == len(copyInterval)-1:
+                current_end_time = float("inf")
+            else:
+                current_end_time = copyInterval[copyInterval.index(current_time)+1]-dt
+            # while current_time not in currentInterval:
+            #     current_time = current_time+1
+            # current_end_time = current_time-1
             #The first case below is when the list of intervals is empty
             if len(L) == 0:
                 start_time = 0
@@ -279,11 +299,11 @@ class SIPP(object):
         self.startState.eValue = self.euclideanMetric(self.startState.node, self.goalState.node)
         self.startState.arrTime = self.clock
         SIPP.addEntryToQueue(openPriorityQueue, self.startState.eValue, self.startState)
-        CValue[self.startState.node] = 0
-        TValue[self.startState.node] = self.clock
+        CValue[tuple(self.startState.node)] = 0
+        TValue[tuple(self.startState.node)] = self.clock
         currentState = self.startState
 # TODO the openPriorityQueue can not be empty as it owuld take infinite time so rather cap it with max iterations
-        while len(openPriorityQueue) != 0 or self.euclideanMetric(currentState, self.goalState)<1.0:
+        while self.euclideanMetric(currentState.node, self.goalState.node)>1.0:
             currentState = SIPP.getEntryFromQueue(openPriorityQueue)[1]
             # TODO Here the
             # datastructure that would come would have state and priority so
@@ -293,25 +313,27 @@ class SIPP(object):
             for successor in successorList:
                 flag = 0                    #Assuming the node is not present in the closedList
                 for element in closedList:
-                    if element.node == successor.node:
+                    if element == tuple(successor.node):
                         flag = 1            #If the node is found in closedList make flag = 1
                     else:
                         flag = 0            #Else make the flag = 0
 
                 if flag == 0:
-                    closedList.add(successor)
-                    CValue[successor.node] = float("inf")
-                    TValue[successor.node] = float("inf")
-                if CValue[successor.node] > currentState.cValue+successor.edgeCost or TValue[successor.node] > successor.arrTime:
-                    CValue[successor.node] = min(currentState.cValue+successor.edgeCost, CValue[successor.node])
-                    TValue[successor.node] = min(TValue[successor.node], successor.arrTime)
+                    closedList.add(tuple(successor.node))
+                    CValue[tuple(successor.node)] = float("inf")
+                    TValue[tuple(successor.node)] = float("inf")
+                if CValue[tuple(successor.node)] > currentState.cValue+successor.edgeCost or TValue[tuple(successor.node)] > successor.arrTime:
+                    CValue[tuple(successor.node)] = min(currentState.cValue+successor.edgeCost, CValue[tuple(successor.node)])
+                    TValue[tuple(successor.node)] = min(TValue[tuple(successor.node)], successor.arrTime)
                     successor.cValue = currentState.cValue+successor.edgeCost                       #Check if this is already done in the
                     successor.eValue = currentState.cValue+successor.edgeCost+successor.hValue      #getSuccessor function. Do only once.
                     # successor.arrTime = currentState.arrTime + 1
 
                     SIPP.addEntryToQueue(openPriorityQueue, successor.eValue, successor)
+                    self.handler.append(self.env.plot3(np.array([successor.node[0], successor.node[1], 0.1]), 5.0, colors=np.array(((1, 0, 0)))))
                     for entry in openPriorityQueue:
-                        if entry[1].node == successor.node and entry[1].cValue >= CValue[successor.node] and entry[1].arrTime >= TValue[successor.node]:
+                        term = (entry[1].cValue > CValue[tuple(successor.node)] and entry[1].arrTime > TValue[tuple(successor.node)]) or (entry[1].cValue >= CValue[tuple(successor.node)] and entry[1].arrTime > TValue[tuple(successor.node)]) or (entry[1].cValue > CValue[tuple(successor.node)] and entry[1].arrTime >= TValue[tuple(successor.node)])
+                        if entry[1].node == successor.node and term:
                             openPriorityQueue.remove(entry)
                     heapq.heapify(openPriorityQueue)
         self.goalState.parent = currentState
@@ -328,10 +350,10 @@ class SIPP(object):
 
 if __name__=="__main__":
     priortyList = [1, 4, 2, 3]
-    State.setParameters(startValue[priortyList[0]], goalValue[priortyList[0]])
-    solverSIPP = SIPP(None, None)
-    for index in range(len(priortyList)):
-        State.setParameters(startValue[priortyList[index]], goalValue[priortyList[index]])
-        solverSIPP.setStartState(startValue[priortyList[index]])
-        solverSIPP.setGoalState(goalValue[priortyList[index]])
-        solverSIPP.runSIPP()
+    # State.setParameters(startValue[priortyList[0]], goalValue[priortyList[0]])
+    # solverSIPP = SIPP(None, None)
+    # for index in range(len(priortyList)):
+    #     State.setParameters(startValue[priortyList[index]], goalValue[priortyList[index]])
+    #     solverSIPP.setStartState(startValue[priortyList[index]])
+    #     solverSIPP.setGoalState(goalValue[priortyList[index]])
+    #     solverSIPP.runSIPP()
