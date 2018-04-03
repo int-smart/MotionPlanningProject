@@ -18,6 +18,22 @@ def waitrobot(robot):
     while not robot.GetController().IsDone():
         time.sleep(0.01)
 
+def removeAllRobots(env):
+    for robot in env.GetRobots():
+        env.RemoveKinBody(robot)
+
+def addIndividualRobot(env, planFor, startConfigurations):
+    env.AddRobot(planFor)
+    planFor.SetActiveDOFValues(startConfigurations[planFor])
+
+def removeIndividualRobot(env, planFor):
+    env.RemoveKinBody(planFor)
+
+def addAllRobots(env, startConfigurations):
+    for robot in startConfigurations.keys():
+        env.AddRobot(robot)
+        robot.SetActiveDOFValues(startConfigurations[robot])
+
 def tuckarms(env,robot):
     with env:
         jointnames = ['l_shoulder_lift_joint','l_elbow_flex_joint','l_wrist_flex_joint','r_shoulder_lift_joint','r_elbow_flex_joint','r_wrist_flex_joint']
@@ -65,13 +81,19 @@ if __name__ == "__main__":
         li = list(reversed(sorted(priorList.values())))
         prior = li[i]
         agent = priorList.keys()[priorList.values().index(prior)]
+        # Clearing the environment of all robots so as to plan for individual robots according to priorty
+        removeAllRobots(env)
         ambulanceStartConfig = agent.getStart()
         ambulanceGoalConfig = agent.getGoal()
         ambulance = agent.getRobot()
+        addIndividualRobot(env, ambulance, startConfigurations)
         multiPlan = multiPlanner.SIPP(ambulanceStartConfig, ambulanceGoalConfig, env, ambulance)
         multiPlan.TInterval = TI
         multiPlan.runSIPP()
         TI = multiPlanner.SIPP.TInterval
+        removeIndividualRobot(env, ambulance)
+        addAllRobots(env, startConfigurations)
+
     # ambulance = env.GetRobots()[1]
     # ambulanceStartConfig = list(ambulance.GetActiveDOFValues())
     # ambulanceGoalConfig = [0, 0, 0]
