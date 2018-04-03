@@ -5,6 +5,7 @@ import openravepy
 from planner import priorityPlanner as prp
 from planner import SIPP as multiPlanner
 import random
+import numpy as np
 # TODO: The goal and start state of the agent on lines 60, 61 is coming same. Fix it
 # TODO: Currently the configurations are not colliding in the SIPP as all config can be different even if
 # the orientation is different by 0.00001. SO add the distance measure so that the path for one robot at time
@@ -36,8 +37,8 @@ if __name__ == "__main__":
 
     env.Reset()
     # load a scene from ProjectRoom environment XML file
-    # env.Load('./data/pr2test2.env.xml')
-    env.Load('./data/4PR2_door.xml')
+    env.Load('./data/pr2test2.env.xml')
+    # env.Load('./data/4PR2_door.xml')
     time.sleep(0.1)
 
     startConfigurations = dict()
@@ -57,27 +58,38 @@ if __name__ == "__main__":
     ambulanceGoalConfig = [4.60594, 0.28479, 0]
     TI = dict()
     # ambulanceGoalConfig = [2.6,-1.3,-pi/2]
-
+    handler = []
     random.seed(2)
     #### YOUR CODE HERE ####
-    priorList = prp.priorityPlanner(env, startConfigurations, ambulance, ambulanceStartConfig, ambulanceGoalConfig)
-    for i in range(len(priorList.values())):
-        li = list(reversed(sorted(priorList.values())))
-        prior = li[i]
-        agent = priorList.keys()[priorList.values().index(prior)]
-        ambulanceStartConfig = agent.getStart()
-        ambulanceGoalConfig = agent.getGoal()
-        ambulance = agent.getRobot()
-        multiPlan = multiPlanner.SIPP(ambulanceStartConfig, ambulanceGoalConfig, env, ambulance)
-        multiPlan.TInterval = TI
-        multiPlan.runSIPP()
-        TI = multiPlanner.SIPP.TInterval
-    # ambulance = env.GetRobots()[1]
-    # ambulanceStartConfig = list(ambulance.GetActiveDOFValues())
-    # ambulanceGoalConfig = [0, 0, 0]
-    # multiPlan1 = multiPlanner.SIPP(ambulanceStartConfig, ambulanceGoalConfig, env, ambulance)
-    # multiPlan1.TInterval = multiPlan.TInterval
-    # multiPlan1.runSIPP()
+    # priorList = prp.priorityPlanner(env, startConfigurations, ambulance, ambulanceStartConfig, ambulanceGoalConfig)
+    # for i in range(len(priorList.values())):
+    #     li = list(reversed(sorted(priorList.values())))
+    #     prior = li[i]
+    #     agent = priorList.keys()[priorList.values().index(prior)]
+    #     ambulanceStartConfig = agent.getStart()
+    #     ambulanceGoalConfig = agent.getGoal()
+    #     ambulance = agent.getRobot()
+    #     multiPlan = multiPlanner.SIPP(ambulanceStartConfig, ambulanceGoalConfig, env, ambulance)
+    #     multiPlan.TInterval = TI
+    #     multiPlan.runSIPP()
+    #     TI = multiPlanner.SIPP.TInterval
+    ambulance = env.GetRobots()[0]
+    ambulanceStartConfig = list(ambulance.GetActiveDOFValues())
+    ambulanceGoalConfig = [0,1.2,-pi/2]
+    multiPlan = multiPlanner.SIPP(ambulanceStartConfig, ambulanceGoalConfig, env, ambulance)
+    multiPlan.runSIPP()
+    for state in multiPlan.path:
+        handler.append(env.plot3(np.array([state[0], state[1], 0.1]), 5.0,colors=np.array(((1, 1, 1)))))
+
+    ambulance = env.GetRobots()[1]
+    env.RemoveKinBody(env.GetRobots()[0])
+    ambulanceStartConfig = list(ambulance.GetActiveDOFValues())
+    ambulanceGoalConfig = [0,-1.2,-pi/2]
+    multiPlan1 = multiPlanner.SIPP(ambulanceStartConfig, ambulanceGoalConfig, env, ambulance)
+    multiPlan1.TInterval = multiPlan.TInterval
+    multiPlan1.runSIPP()
+    for state in multiPlan1.path:
+        handler.append(env.plot3(np.array([state[0], state[1], 0.1]), 5.0, colors=np.array(((0, 0, 0)))))
     print("I am done")
 
 

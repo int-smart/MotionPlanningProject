@@ -151,11 +151,12 @@ class SIPP(object):
 
     @staticmethod
     def CheckCollisions(env, robot, config):
-        robot.SetActiveDOFValues(config)
-        if env.CheckCollision(robot) or robot.CheckSelfCollision():
-            return True
-        else:
-            return False
+        with env:
+            robot.SetActiveDOFValues(config)
+            if env.CheckCollision(robot) or robot.CheckSelfCollision():
+                return True
+            else:
+                return False
 
     @staticmethod
     def getEightConnectedNeighbors(currentState, env, robot, stepSizeX, stepSizeY, stepSizeTheta):
@@ -199,13 +200,27 @@ class SIPP(object):
 
     @staticmethod
     def getEntryFromQueue(container):
+        if len(container) == 0:
+            print("None")
         return heapq.heappop(container)
 
     def getTValue(self, state):
-        if self.TInterval.has_key(tuple(state.node)):
-            return self.TInterval[tuple(state.node)]
-        else:
+        indexList = []
+        finalList = []
+        distance = map(self.euclideanMetric, [state.node for i in range(len(self.TInterval))],self.TInterval.keys())
+        for index in range(len(distance)):
+            if distance[index]<SAFE_DISTANCE:
+                indexList.append(index)
+        for index in indexList:
+            for timeStp in self.TInterval[self.TInterval.keys()[index]]:
+                finalList.append(timeStp)
+
+        if len(finalList) == 0:
             return []
+        else:
+            temp = list(set(finalList))
+            temp.sort()
+            return temp
 
     def generatePath(self):
         path = []
@@ -219,7 +234,11 @@ class SIPP(object):
                 SIPP.TInterval[tuple(state.node)].append(state.arrTime)
             state = state.parent
         path.append(state.node)
-
+        if SIPP.TInterval.has_key(tuple(state.node)):
+            SIPP.TInterval[tuple(state.node)].append(state.arrTime)
+        else:
+            SIPP.TInterval[tuple(state.node)] = []
+            SIPP.TInterval[tuple(state.node)].append(state.arrTime)
         return path
 
     def getSuccessors(self, state, timeStep):
@@ -240,7 +259,8 @@ class SIPP(object):
             end_time = float("inf")
             currentInterval = self.getTValue(state)
             current_time = timeStep
-
+            if L is None:
+                print("None")
             copyInterval = copy.deepcopy(currentInterval)
             copyInterval.append(current_time)
             copyInterval.sort()
@@ -301,9 +321,10 @@ class SIPP(object):
         SIPP.addEntryToQueue(openPriorityQueue, self.startState.eValue, self.startState)
         CValue[tuple(self.startState.node)] = 0
         TValue[tuple(self.startState.node)] = self.clock
+        closedList.add(tuple(self.startState.node))
         currentState = self.startState
 # TODO the openPriorityQueue can not be empty as it owuld take infinite time so rather cap it with max iterations
-        while self.euclideanMetric(currentState.node, self.goalState.node)>1.0:
+        while self.euclideanMetric(currentState.node, self.goalState.node)>SIPP_GOAL_TOLERANCE:
             currentState = SIPP.getEntryFromQueue(openPriorityQueue)[1]
             # TODO Here the
             # datastructure that would come would have state and priority so
@@ -313,8 +334,9 @@ class SIPP(object):
             for successor in successorList:
                 flag = 0                    #Assuming the node is not present in the closedList
                 for element in closedList:
-                    if element == tuple(successor.node):
+                    if list(element) == successor.node:
                         flag = 1            #If the node is found in closedList make flag = 1
+                        break
                     else:
                         flag = 0            #Else make the flag = 0
 
@@ -340,7 +362,6 @@ class SIPP(object):
         self.goalState.arrTime = currentState.arrTime+1
         self.path = self.generatePath()
         self.path.reverse()
-
 
     def setStartState(self, startConfig):
         self.startState = State(startConfig, None)
