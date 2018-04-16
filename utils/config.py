@@ -5,5 +5,5 @@ BACKWARD = -1
 EDGETIMECOST = 1
 STARTING_TIME = 0
 SIPP_GOAL_TOLERANCE = 0.5
-SAFE_DISTANCE = 0.5
-# SAFE_DISTANCE = 2.5           #Uncomment this when trying to do PR2test2.xml the simple one
+# SAFE_DISTANCE = 0.5
+SAFE_DISTANCE = 0.9         #Uncomment this when trying to do PR2test2.xml the simple one

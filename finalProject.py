@@ -5,6 +5,7 @@ import openravepy
 from planner import priorityPlanner as prp
 from planner import SIPP as multiPlanner
 import random
+import numpy as np
 # TODO: The goal and start state of the agent on lines 60, 61 is coming same. Fix it
 # TODO: Currently the configurations are not colliding in the SIPP as all config can be different even if
 # the orientation is different by 0.00001. SO add the distance measure so that the path for one robot at time
@@ -53,7 +54,7 @@ if __name__ == "__main__":
     env.Reset()
     # load a scene from ProjectRoom environment XML file
     # env.Load('./data/pr2test2.env.xml')
-    env.Load('./data/4PR2_door.xml')
+    env.Load('./data/4PR2_doorIncreased.xml')
     time.sleep(0.1)
 
     startConfigurations = dict()
@@ -74,8 +75,11 @@ if __name__ == "__main__":
     TI = dict()
     # ambulanceGoalConfig = [2.6,-1.3,-pi/2]
 
-    random.seed(2)
+    random.seed(4)
+    paths = []
+    handler = []
     #### YOUR CODE HERE ####
+    time.sleep(10)
     priorList = prp.priorityPlanner(env, startConfigurations, ambulance, ambulanceStartConfig, ambulanceGoalConfig)
     for i in range(len(priorList.values())):
         li = list(reversed(sorted(priorList.values())))
@@ -90,10 +94,14 @@ if __name__ == "__main__":
         multiPlan = multiPlanner.SIPP(ambulanceStartConfig, ambulanceGoalConfig, env, ambulance)
         multiPlan.TInterval = TI
         multiPlan.runSIPP()
+        paths.append(multiPlan.path)
         TI = multiPlanner.SIPP.TInterval
         removeIndividualRobot(env, ambulance)
         addAllRobots(env, startConfigurations)
-
+    for pathIndex in paths:
+        colorValue = random.uniform(0,1)
+        for state in pathIndex:
+            handler.append(env.plot3(np.array([state[0], state[1], 0.1]), 5.0, colors=np.array(((colorValue, 1-colorValue, ((colorValue*5)%1))))))
     # ambulance = env.GetRobots()[1]
     # ambulanceStartConfig = list(ambulance.GetActiveDOFValues())
     # ambulanceGoalConfig = [0, 0, 0]

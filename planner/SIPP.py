@@ -130,7 +130,7 @@ class State(object):
 
 class SIPP(object):
     TInterval = dict()
-    def __init__(self, startConfig, goalConfig, env, robot, stepX=0.25, stepY=0.15, stepTheta=0.25, tolerance=0.6, hr = "euclidean", connection=8):
+    def __init__(self, startConfig, goalConfig, env, robot, stepX=0.25, stepY=0.14, stepTheta=0.25, tolerance=0.6, hr = "euclidean", connection=8):
         State.setParameters(startConfig, goalConfig)
         self.startState = State(startConfig,None)
         self.goalState = State(goalConfig,None)
@@ -193,6 +193,13 @@ class SIPP(object):
         return heuristic
 
     @staticmethod
+    def newEuclideanMetric(current, goal):
+        temp = [current[i] - goal[i] for i in range(2)]
+        temp = np.asarray(temp)
+        heuristic = np.linalg.norm(temp, 2)
+        return heuristic
+
+    @staticmethod
     def addEntryToQueue(container, priority, entry):
         newEntry = copy.deepcopy(entry)
         heapq.heappush(container,([priority, newEntry]))
@@ -207,7 +214,7 @@ class SIPP(object):
     def getTValue(self, state):
         indexList = []
         finalList = []
-        distance = map(self.euclideanMetric, [state.node for i in range(len(self.TInterval))],self.TInterval.keys())
+        distance = map(self.newEuclideanMetric, [state.node for i in range(len(self.TInterval))],self.TInterval.keys())
         for index in range(len(distance)):
             if distance[index]<SAFE_DISTANCE:
                 indexList.append(index)
