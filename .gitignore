@@ -1,2 +1,5 @@
 HW1files.zip
 *.png
+*.pyc
+planner/*.pyc
+utils/*.pyc
