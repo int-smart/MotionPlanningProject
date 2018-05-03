@@ -208,7 +208,11 @@ class SST():
                         if deleteFlag == False:
                             break
             i = i+1
-        return
+        path = []
+        for node in activeSet._tree:
+            if self.isGoal(node):
+                path = activeSet._generatePath(node)
+        return path
 
     def randomConfig(self):
         randConfig = []
