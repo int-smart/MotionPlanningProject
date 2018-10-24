@@ -1,6 +1,8 @@
 # MotionPlanningProject
 SIPP+BiRRT+PriorityPlanner
 
+![Screenshot](ezgif.com-video-to-gif.gif)
+
 ### Abstract:
 The multi-robot path planning problem is a heavily researched field in motion planning. Multi-robot path
 planning is difficult considering the exponential number of plans that are possible. For a realistic world
